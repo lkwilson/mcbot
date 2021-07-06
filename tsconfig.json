@@ -6,9 +6,10 @@
     "target": "es6",
     "noImplicitAny": false,
     "moduleResolution": "node",
-    "sourceMap": true,
+    "sourceMap": false,
     "outDir": "dist",
     "baseUrl": ".",
+    "skipLibCheck": true,
     "paths": {
       "*": [
         "node_modules/*",
@@ -18,5 +19,9 @@
   },
   "include": [
     "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts"
   ]
 }

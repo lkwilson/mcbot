@@ -1,5 +1,5 @@
 {
-  "name": "backend",
+  "name": "mcbot",
   "version": "1.0.0",
   "description": "",
   "main": "dist/main.js",
@@ -14,5 +14,9 @@
   "devDependencies": {
     "typescript": "^4.3.5",
     "webpack": "^5.42.1"
+  },
+  "dependencies": {
+    "mineflayer": "^3.7.0",
+    "mineflayer-pathfinder": "^1.6.3"
   }
 }
