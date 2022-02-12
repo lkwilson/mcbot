@@ -23,65 +23,70 @@ import { Movements } from 'mineflayer-pathfinder'
 import { goals } from 'mineflayer-pathfinder';
 import minecraft_data from 'minecraft-data';
 
+// Load your dependency plugins.
 bot.loadPlugin(pathfinder);
 
-bot.once('spawn', () => {
-  const mc_data = minecraft_data(bot.version);
-  const no_build_movements = new Movements(bot, mc_data);
-  no_build_movements.dontCreateFlow = true;
-  no_build_movements.canDig = false;
-  no_build_movements.allow1by1towers = false;
+// Import required behaviors.
+import {
+  StateTransition,
+  BotStateMachine,
+  EntityFilters,
+  BehaviorFollowEntity,
+  BehaviorLookAtEntity,
+  BehaviorGetClosestEntity,
+  NestedStateMachine,
+} from "mineflayer-statemachine";
 
-  const my_prefix = bot.username + ' ';
+// wait for our bot to login.
+bot.once("spawn", () => {
+  // This targets object is used to pass data between different states. It can be left empty.
+  const targets = {};
 
-  let last_path_update = null;
-  bot.on('path_update' as any as keyof BotEvents, (results) => {
-    const { status } = results;
-    if (status === last_path_update) {
-      return;
-    }
-    debug('path_update', status);
-    if (status === 'success') {
-      chat('on it');
-    } else if (status === 'partial') {
-      chat("i think i can do that");
-    } else if (status === 'timeout') {
-      chat("nah");
-      chat("too hard");
-      bot.pathfinder.stop();
-    } else if (status === 'noPath') {
-      chat("pretty sure its impossible");
-      bot.pathfinder.stop();
-    }
-    last_path_update = status;
-  });
+  // Create our states
+  const getClosestPlayer = new BehaviorGetClosestEntity(bot, targets, EntityFilters().PlayersOnly);
+  const followPlayer = new BehaviorFollowEntity(bot, targets);
+  const lookAtPlayer = new BehaviorLookAtEntity(bot, targets);
 
-  let last_path_reset = null;
-  bot.on('path_reset' as any as keyof BotEvents, (reason) => {
-    if (last_path_reset === reason) {
-      return;
-    }
-    if (reason === 'stuck') {
-      chat('i think im stuck');
-    } else {
-      return;
-    }
-    debug('path_reset:', reason);
-    last_path_reset = reason;
-  });
+  // Create our transitions
+  const transitions = [
 
-  bot.on('goal_reached' as any as keyof BotEvents, () => {
-    chat('k done');
-    last_path_update = null;
-    last_path_reset = null;
-  });
+    // We want to start following the player immediately after finding them.
+    // Since getClosestPlayer finishes instantly, shouldTransition() should always return true.
+    new StateTransition({
+      parent: getClosestPlayer,
+      child: followPlayer,
+      shouldTransition: () => true,
+    }),
 
-  bot.on('path_stop' as any as keyof BotEvents, () => {
-    last_path_reset = null;
-    last_path_update = null;
-  });
+    // If the distance to the player is less than two blocks, switch from the followPlayer
+    // state to the lookAtPlayer state.
+    new StateTransition({
+      parent: followPlayer,
+      child: lookAtPlayer,
+      shouldTransition: () => followPlayer.distanceToTarget() < 2,
+    }),
+
+    // If the distance to the player is more than two blocks, switch from the lookAtPlayer
+    // state to the followPlayer state.
+    new StateTransition({
+      parent: lookAtPlayer,
+      child: followPlayer,
+      shouldTransition: () => lookAtPlayer.distanceToTarget() >= 2,
+    }),
+  ];
+
+  // Now we just wrap our transition list in a nested state machine layer. We want the bot
+  // to start on the getClosestPlayer state, so we'll specify that here.
+  const rootLayer = new NestedStateMachine(transitions, getClosestPlayer);
+
+  // We can start our state machine simply by creating a new instance.
+  const bot_state_machine = new BotStateMachine(bot, rootLayer);
 
   bot.on('chat', (username, raw_message) => {
+    bot_state_machine; // increase reference count for now
+
+    const my_prefix = bot.username + ' ';
+
     if (username === bot.username) {
       return;
     }
@@ -93,32 +98,7 @@ bot.once('spawn', () => {
 
     const player = bot.players[username];
 
-    if (command.startsWith('come')) {
-      if (!player) {
-        chat(`${username}, i dont see you`);
-        return;
-      }
-      const target = player.entity;
-      const { x, y, z } = target.position;
-
-      bot.pathfinder.setMovements(no_build_movements);
-      bot.pathfinder.setGoal(new goals.GoalNear(x, y, z, 1));
-    } else if (command.startsWith('follow')) {
-      if (!player) {
-        chat(`${username}, i dont see you`);
-        return;
-      }
-      bot.pathfinder.setMovements(no_build_movements);
-      bot.pathfinder.setGoal(new goals.GoalFollow(player.entity, 3), true);
-    } else if (command.startsWith('avoid')) {
-      bot.pathfinder.setMovements(no_build_movements);
-      bot.pathfinder.setGoal(new goals.GoalInvert(new goals.GoalFollow(player.entity, 5)), true);
-    } else if (command.startsWith('where are you')) {
-      const { x, y, z } = bot.entity.position;
-      chat([x, y, z].map(loc => loc.toFixed(0)).join(', '));
-    } else if (command.startsWith('stop')) {
-      bot.pathfinder.stop();
-    } else if (command.startsWith('i think you should leave')) {
+    if (command.startsWith('i think you should leave')) {
       setTimeout(() => {
         chat('oh');
         setTimeout(() => {
@@ -129,9 +109,9 @@ bot.once('spawn', () => {
         }, 3000);
       }, 1000);
     } else {
-      chat('?' + command);
+      chat('?');
       setTimeout(() => {
-        chat(`you told me: ${command}`);
+        chat("I don't understand");
       }, 500);
     }
   });
