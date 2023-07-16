@@ -4,19 +4,25 @@
   "description": "",
   "main": "dist/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
-    "start": "tsc && node dist/main.js"
+    "dev": "rollup --config rollup.config.mjs --watch",
+    "start": "node dist/main.js",
+    "lint": "tsc -p .",
+    "build": "rollup --config rollup.config.mjs"
   },
-  "keywords": [],
   "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "typescript": "^4.3.5",
-    "webpack": "^5.42.1"
-  },
   "dependencies": {
-    "mineflayer": "^3.7.0",
-    "mineflayer-pathfinder": "^1.6.3"
+    "mineflayer": "^4.10.0",
+    "mineflayer-pathfinder": "^2.4.4"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.3",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-terser": "^0.4.3",
+    "@rollup/plugin-typescript": "^11.1.2",
+    "@types/node": "^20.4.2",
+    "concurrently": "^8.2.0",
+    "cross-env": "^7.0.3",
+    "rollup": "^3.26.2",
+    "typescript": "^5.1.6"
   }
 }
