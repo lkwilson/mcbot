@@ -4,24 +4,29 @@
   "description": "",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "rollup --config rollup.config.mjs --watch",
+    "dev": "cross-env IS_DEV=yes rollup --config rollup.config.mjs --watch",
     "start": "node dist/main.js",
     "lint": "tsc -p .",
+    "format": "prettier --write src/ rollup.config.mjs tsconfig.json tsconfig.node.json",
     "build": "rollup --config rollup.config.mjs"
   },
   "author": "",
   "dependencies": {
     "mineflayer": "^4.10.0",
-    "mineflayer-pathfinder": "^2.4.4"
+    "mineflayer-pathfinder": "^2.4.4",
+    "mineflayer-statemachine": "^1.7.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.3",
+    "@rollup/plugin-json": "^6.0.0",
     "@rollup/plugin-node-resolve": "^15.1.0",
     "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-typescript": "^11.1.2",
     "@types/node": "^20.4.2",
     "concurrently": "^8.2.0",
     "cross-env": "^7.0.3",
+    "dotenv": "^16.3.1",
+    "prettier": "^3.0.0",
     "rollup": "^3.26.2",
     "typescript": "^5.1.6"
   }

@@ -2,8 +2,9 @@
 import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
+import json from "@rollup/plugin-json";
 
-const isDevelopment = process.env.IS_DEV === "true";
+const isDevelopment = process.env.IS_DEV === "yes";
 
 export default (async () => [
   {
@@ -12,11 +13,13 @@ export default (async () => [
       typescript(),
       resolve(),
       commonjs(),
+      json(),
       !isDevelopment && (await import("@rollup/plugin-terser")).default(),
     ],
+    external: ["mineflayer"],
     output: {
       file: "./dist/main.js",
       format: "cjs",
     },
-  }
+  },
 ])();
