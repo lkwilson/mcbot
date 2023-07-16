@@ -143,6 +143,8 @@ bot.once("spawn", () => {
       chat("k");
       await sleep(3000);
       bot.quit();
+    } else if (command.startsWith("stop")) {
+      bot.quit();
     } else {
       chat("?");
       await sleep(500);
