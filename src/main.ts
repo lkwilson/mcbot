@@ -2,11 +2,42 @@ import "dotenv/config";
 
 import mineflayer from "mineflayer";
 
+import { pathfinder } from "mineflayer-pathfinder";
+
+// Import required behaviors.
+import {
+  StateTransition,
+  BotStateMachine,
+  EntityFilters,
+  BehaviorFollowEntity,
+  BehaviorLookAtEntity,
+  BehaviorGetClosestEntity,
+  NestedStateMachine,
+} from "mineflayer-statemachine";
+
+// helper funcs
 function error(...args: any[]): never {
   console.error(...args);
   process.exit(1);
 }
 
+const isDevelopment = process.env.IS_DEV == "yes";
+function debug(...args: any[]) {
+  if (isDevelopment) {
+    console.debug("D", ...args);
+  }
+}
+
+function chat(msg: string) {
+  bot.chat(msg);
+  debug("B", msg);
+}
+
+async function sleep(durMs: number) {
+  return new Promise((resolve) => setTimeout(resolve, durMs));
+}
+
+// env parsing
 const username = process.env.USERNAME;
 if (username == null) {
   error("USERNAME is unset in .env");
@@ -18,10 +49,10 @@ if (host == null) {
 }
 
 let port: number | undefined;
-const port_str = process.env.PORT;
-if (port_str != null) {
+const portStr = process.env.PORT;
+if (portStr != null) {
   try {
-    port = parseInt(port_str);
+    port = parseInt(portStr);
   } catch (err) {
     error("Unable to parse PORT from .env:", err);
   }
@@ -38,31 +69,6 @@ const bot = mineflayer.createBot({
 bot.on("error", console.error);
 bot.on("kicked", console.error);
 
-import { pathfinder } from "mineflayer-pathfinder";
-
-// Import required behaviors.
-import {
-  StateTransition,
-  BotStateMachine,
-  EntityFilters,
-  BehaviorFollowEntity,
-  BehaviorLookAtEntity,
-  BehaviorGetClosestEntity,
-  NestedStateMachine,
-} from "mineflayer-statemachine";
-
-const debug_mode = process.env.IS_DEV == "yes";
-function debug(...args) {
-  if (debug_mode) {
-    console.debug("D", ...args);
-  }
-}
-
-function chat(msg: string) {
-  bot.chat(msg);
-  debug("B", msg);
-}
-
 // Load your dependency plugins.
 bot.loadPlugin(pathfinder);
 
@@ -75,7 +81,7 @@ bot.once("spawn", () => {
   const getClosestPlayer = new BehaviorGetClosestEntity(
     bot,
     targets,
-    EntityFilters().PlayersOnly,
+    EntityFilters().PlayersOnly
   );
   const followPlayer = new BehaviorFollowEntity(bot, targets);
   const lookAtPlayer = new BehaviorLookAtEntity(bot, targets);
@@ -112,10 +118,10 @@ bot.once("spawn", () => {
   const rootLayer = new NestedStateMachine(transitions, getClosestPlayer);
 
   // We can start our state machine simply by creating a new instance.
-  const bot_state_machine = new BotStateMachine(bot, rootLayer);
+  const botStateMachine = new BotStateMachine(bot, rootLayer);
 
-  bot.on("chat", (username, raw_message) => {
-    bot_state_machine; // increase reference count for now
+  bot.on("chat", async (username, raw_message) => {
+    botStateMachine; // increase reference count for now
 
     const my_prefix = bot.username + " ";
 
@@ -126,28 +132,21 @@ bot.once("spawn", () => {
     if (!message.startsWith(my_prefix)) {
       return;
     }
-    const command = message.substr(my_prefix.length);
+    const command = message.substring(my_prefix.length);
 
     const player = bot.players[username];
 
     if (command.startsWith("i think you should leave")) {
-      setTimeout(() => {
-        chat("oh");
-        setTimeout(() => {
-          chat("k");
-          setTimeout(() => {
-            bot.quit();
-          }, 3000);
-        }, 3000);
-      }, 1000);
+      await sleep(1000);
+      chat("oh");
+      await sleep(3000);
+      chat("k");
+      await sleep(3000);
+      bot.quit();
     } else {
       chat("?");
-      setTimeout(() => {
-        chat("I don't understand");
-      }, 500);
+      await sleep(500);
+      chat("I don't understand");
     }
   });
 });
-
-bot.on("error", console.error);
-bot.on("kicked", console.error);

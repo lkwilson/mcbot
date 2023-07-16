@@ -16,7 +16,11 @@ export default (async () => [
       json(),
       !isDevelopment && (await import("@rollup/plugin-terser")).default(),
     ],
-    external: ["mineflayer"],
+    external: [
+      "mineflayer",
+      "mineflayer-pathfinder",
+      "mineflayer-statemachine",
+    ],
     output: {
       file: "./dist/main.js",
       format: "cjs",
