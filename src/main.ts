@@ -86,6 +86,8 @@ bot.once("spawn", () => {
   const followPlayer = new BehaviorFollowEntity(bot, targets);
   const lookAtPlayer = new BehaviorLookAtEntity(bot, targets);
 
+  let followDist = 5;
+
   // Create our transitions
   const transitions = [
     // We want to start following the player immediately after finding them.
@@ -101,7 +103,7 @@ bot.once("spawn", () => {
     new StateTransition({
       parent: followPlayer,
       child: lookAtPlayer,
-      shouldTransition: () => followPlayer.distanceToTarget() < 2,
+      shouldTransition: () => followPlayer.distanceToTarget() < followDist,
     }),
 
     // If the distance to the player is more than two blocks, switch from the lookAtPlayer
@@ -109,7 +111,7 @@ bot.once("spawn", () => {
     new StateTransition({
       parent: lookAtPlayer,
       child: followPlayer,
-      shouldTransition: () => lookAtPlayer.distanceToTarget() >= 2,
+      shouldTransition: () => lookAtPlayer.distanceToTarget() >= followDist,
     }),
   ];
 
@@ -123,16 +125,21 @@ bot.once("spawn", () => {
   bot.on("chat", async (username, raw_message) => {
     botStateMachine; // increase reference count for now
 
-    const my_prefix = bot.username + " ";
+    const nameCmdPrefix = `${bot.username} `;
+    const botCmdPrefix = "bot ";
 
     if (username === bot.username) {
       return;
     }
     const message = raw_message.trim();
-    if (!message.startsWith(my_prefix)) {
+    let command: string;
+    if (message.startsWith(nameCmdPrefix)) {
+      command = message.substring(nameCmdPrefix.length);
+    } else if (message.startsWith(botCmdPrefix)) {
+      command = message.substring(botCmdPrefix.length);
+    } else {
       return;
     }
-    const command = message.substring(my_prefix.length);
 
     const player = bot.players[username];
 
@@ -146,6 +153,7 @@ bot.once("spawn", () => {
     } else if (command.startsWith("stop")) {
       bot.quit();
     } else {
+      await sleep(100);
       chat("?");
       await sleep(500);
       chat("I don't understand");
