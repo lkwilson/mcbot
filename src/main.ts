@@ -171,7 +171,7 @@ bot.once("spawn", () => {
         key: "bye",
         help: "I might be doing something bad so I just up and leave",
         handler() {
-          botStateTarget = "idle";
+          bot.quit();
         },
       },
       {
@@ -221,6 +221,16 @@ bot.once("spawn", () => {
         async handler() {
           chat(`/tp ${bot.username} ${username}`);
           chat("ok");
+        },
+      },
+      {
+        key: "help",
+        help: "I'll tell you this stuff",
+        handler() {
+          const help = cmdHandlers
+            .map((cmdHandler) => `${cmdHandler.key}: ${cmdHandler.help}`)
+            .join("\n");
+          chat(`Here's my commands:\n${help}`);
         },
       },
     ];
