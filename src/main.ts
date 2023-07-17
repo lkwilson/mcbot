@@ -24,13 +24,14 @@ function error(...args: any[]): never {
 const isDevelopment = process.env.IS_DEV == "yes";
 function debug(...args: any[]) {
   if (isDevelopment) {
-    console.debug("D", ...args);
+    console.debug("D:", ...args);
+    // bot.chat(`D: ${args}`);
   }
 }
 
 function chat(msg: string) {
   bot.chat(msg);
-  debug("B", msg);
+  debug("B:", msg);
 }
 
 async function sleep(durMs: number) {
@@ -50,7 +51,7 @@ if (host == null) {
 
 let port: number | undefined;
 const portStr = process.env.PORT;
-if (portStr != null) {
+if (portStr !== undefined) {
   try {
     port = parseInt(portStr);
   } catch (err) {
@@ -74,6 +75,8 @@ bot.loadPlugin(pathfinder);
 
 // wait for our bot to login.
 bot.once("spawn", () => {
+  chat("k i'm ready");
+
   // This targets object is used to pass data between different states. It can be left empty.
   const targets = {};
 
@@ -84,12 +87,15 @@ bot.once("spawn", () => {
     EntityFilters().PlayersOnly
   );
   const followPlayer = new BehaviorFollowEntity(bot, targets);
+  followPlayer.movements.canDig = false;
+  followPlayer.movements.canOpenDoors = true;
+
   const lookAtPlayer = new BehaviorLookAtEntity(bot, targets);
 
-  let followDist = 5;
+  let followDist = 2;
 
   // Create our transitions
-  const transitions = [
+  const followTransitions = [
     // We want to start following the player immediately after finding them.
     // Since getClosestPlayer finishes instantly, shouldTransition() should always return true.
     new StateTransition({
@@ -117,46 +123,69 @@ bot.once("spawn", () => {
 
   // Now we just wrap our transition list in a nested state machine layer. We want the bot
   // to start on the getClosestPlayer state, so we'll specify that here.
-  const rootLayer = new NestedStateMachine(transitions, getClosestPlayer);
+  const followTransition = new NestedStateMachine(
+    followTransitions,
+    getClosestPlayer
+  );
 
   // We can start our state machine simply by creating a new instance.
-  const botStateMachine = new BotStateMachine(bot, rootLayer);
+  new BotStateMachine(bot, followTransition);
 
-  bot.on("chat", async (username, raw_message) => {
-    botStateMachine; // increase reference count for now
-
-    const nameCmdPrefix = `${bot.username} `;
-    const botCmdPrefix = "bot ";
-
+  bot.on("chat", async (username, rawMsg) => {
     if (username === bot.username) {
       return;
     }
-    const message = raw_message.trim();
-    let command: string;
-    if (message.startsWith(nameCmdPrefix)) {
-      command = message.substring(nameCmdPrefix.length);
-    } else if (message.startsWith(botCmdPrefix)) {
-      command = message.substring(botCmdPrefix.length);
-    } else {
+
+    const cmd = rawMsg.split(" ").filter((val) => val !== "");
+    if (cmd.length === 0) {
       return;
     }
 
-    const player = bot.players[username];
+    const prefixes = [bot.username, "bot"];
+    if (prefixes.find((prefix) => prefix === cmd[0]) === undefined) {
+      return;
+    }
 
-    if (command.startsWith("i think you should leave")) {
-      await sleep(1000);
-      chat("oh");
-      await sleep(3000);
-      chat("k");
-      await sleep(3000);
-      bot.quit();
-    } else if (command.startsWith("stop")) {
-      bot.quit();
-    } else {
+    if (cmd.length === 1) {
+      await sleep(100);
+      chat("hey");
+      return;
+    }
+
+    const cmdHandlers = [
+      {
+        key: "leave",
+        help: "I get sad and leave",
+        async handler() {
+          await sleep(1000);
+          chat("oh");
+          await sleep(3000);
+          chat("k");
+          await sleep(3000);
+          bot.quit();
+        },
+      },
+      {
+        key: "stop",
+        help: "I might be doing something bad so I just up and leave",
+        handler() {
+          chat("k bye");
+          bot.quit();
+        },
+      },
+    ];
+    const cmdHandler = cmdHandlers.find(
+      (cmdHandler) => cmdHandler.key === cmd[1]
+    );
+    if (cmdHandler === undefined) {
+      debug(`Unknown fullCmd: '${cmd}'`);
       await sleep(100);
       chat("?");
       await sleep(500);
       chat("I don't understand");
+      return;
     }
+    debug(`found fullCmd: '${cmdHandler.key}'`);
+    cmdHandler.handler();
   });
 });
