@@ -76,72 +76,74 @@ bot.loadPlugin(pathfinder);
 bot.once("spawn", () => {
   chat("k i'm ready");
 
+  let botStateTarget: "idle" | "follow" = "idle";
   const targets: StateMachineTargets = {};
+  function buildBotStateMachine() {
+    const idle = new BehaviorIdle();
 
-  const idle = new BehaviorIdle();
+    function buildPlayerFollowState() {
+      const followPlayer = new BehaviorFollowEntity(bot, targets);
+      followPlayer.movements.canDig = false;
+      followPlayer.movements.allow1by1towers = false;
+      followPlayer.movements.allowFreeMotion = true;
 
-  function buildPlayerFollowState() {
-    const followPlayer = new BehaviorFollowEntity(bot, targets);
-    followPlayer.movements.canDig = false;
-    followPlayer.movements.allow1by1towers = false;
-    followPlayer.movements.allowFreeMotion = true;
+      const lookAtPlayer = new BehaviorLookAtEntity(bot, targets);
 
-    const lookAtPlayer = new BehaviorLookAtEntity(bot, targets);
+      const followDist = 2;
 
-    const followDist = 2;
+      const followTransitions = [
+        new StateTransition({
+          parent: idle,
+          child: followPlayer,
+          shouldTransition: () => targets.entity != null,
+        }),
+        new StateTransition({
+          parent: followPlayer,
+          child: idle,
+          shouldTransition: () => targets.entity == null,
+        }),
+        new StateTransition({
+          parent: lookAtPlayer,
+          child: idle,
+          shouldTransition: () => targets.entity == null,
+        }),
+        new StateTransition({
+          parent: followPlayer,
+          child: lookAtPlayer,
+          shouldTransition: () => followPlayer.distanceToTarget() < followDist,
+        }),
+        new StateTransition({
+          parent: lookAtPlayer,
+          child: followPlayer,
+          shouldTransition: () => lookAtPlayer.distanceToTarget() >= followDist,
+        }),
+      ];
 
-    const followTransitions = [
+      return new NestedStateMachine(followTransitions, idle);
+    }
+
+    // nested state machines
+    const followTransition = buildPlayerFollowState();
+
+    // main state machine
+    const botTransitions = [
       new StateTransition({
         parent: idle,
-        child: followPlayer,
-        shouldTransition: () => targets.entity != null,
+        child: followTransition,
+        shouldTransition: () => botStateTarget == "follow",
       }),
       new StateTransition({
-        parent: followPlayer,
+        parent: followTransition,
         child: idle,
-        shouldTransition: () => targets.entity == null,
-      }),
-      new StateTransition({
-        parent: lookAtPlayer,
-        child: idle,
-        shouldTransition: () => targets.entity == null,
-      }),
-      new StateTransition({
-        parent: followPlayer,
-        child: lookAtPlayer,
-        shouldTransition: () => followPlayer.distanceToTarget() < followDist,
-      }),
-      new StateTransition({
-        parent: lookAtPlayer,
-        child: followPlayer,
-        shouldTransition: () => lookAtPlayer.distanceToTarget() >= followDist,
+        shouldTransition: () => botStateTarget != "follow",
       }),
     ];
+    const botStates = new NestedStateMachine(botTransitions, idle);
 
-    return new NestedStateMachine(followTransitions, idle);
+    // start state machine
+    new BotStateMachine(bot, botStates);
   }
-
-  // nested state machines
-  const followTransition = buildPlayerFollowState();
-
-  // main state machine
-  let botStateTarget: "idle" | "follow" = "idle";
-  const botTransitions = [
-    new StateTransition({
-      parent: idle,
-      child: followTransition,
-      shouldTransition: () => botStateTarget == "follow",
-    }),
-    new StateTransition({
-      parent: followTransition,
-      child: idle,
-      shouldTransition: () => botStateTarget != "follow",
-    }),
-  ];
-  const botStates = new NestedStateMachine(botTransitions, idle);
-
-  // start state machine
-  new BotStateMachine(bot, botStates);
+  // buildBotStateMachine()
 
   bot.on("chat", async (username, rawMsg) => {
     if (username === bot.username) {
@@ -164,6 +166,7 @@ bot.once("spawn", () => {
       return;
     }
 
+    let stopAfk: (() => void) | null = null;
     const cmdHandlers = [
       {
         key: "bye",
@@ -190,12 +193,28 @@ bot.once("spawn", () => {
         help: "I'll start following you",
         handler() {
           botStateTarget = "idle";
+          if (stopAfk != null) {
+            stopAfk();
+            stopAfk = null;
+          }
         },
       },
       {
         key: "afk",
         help: "I'll afk where you're standing",
-        handler() {},
+        handler() {
+          const playerEntity = bot.players[username]?.entity;
+          if (playerEntity == null) {
+            chat("I can't seem to find you..");
+            return;
+          }
+          function doAfk() {
+            bot.entity.position = playerEntity.position;
+          }
+          bot.on("physicsTick", doAfk);
+          stopAfk = () => bot.off("physicsTick", doAfk);
+          chat("ok");
+        },
       },
     ];
     const cmdHandler = cmdHandlers.find(
