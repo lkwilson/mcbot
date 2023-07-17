@@ -4,7 +4,6 @@ import mineflayer from "mineflayer";
 
 import { pathfinder } from "mineflayer-pathfinder";
 
-// Import required behaviors.
 import {
   StateTransition,
   BotStateMachine,
@@ -13,6 +12,7 @@ import {
   BehaviorLookAtEntity,
   BehaviorGetClosestEntity,
   NestedStateMachine,
+  StateMachineTargets,
 } from "mineflayer-statemachine";
 
 // helper funcs
@@ -70,17 +70,13 @@ const bot = mineflayer.createBot({
 bot.on("error", console.error);
 bot.on("kicked", console.error);
 
-// Load your dependency plugins.
 bot.loadPlugin(pathfinder);
 
-// wait for our bot to login.
 bot.once("spawn", () => {
   chat("k i'm ready");
 
-  // This targets object is used to pass data between different states. It can be left empty.
-  const targets = {};
+  const targets: StateMachineTargets = {};
 
-  // Create our states
   const getClosestPlayer = new BehaviorGetClosestEntity(
     bot,
     targets,
@@ -94,26 +90,19 @@ bot.once("spawn", () => {
 
   let followDist = 2;
 
-  // Create our transitions
   const followTransitions = [
-    // We want to start following the player immediately after finding them.
-    // Since getClosestPlayer finishes instantly, shouldTransition() should always return true.
     new StateTransition({
       parent: getClosestPlayer,
       child: followPlayer,
       shouldTransition: () => true,
     }),
 
-    // If the distance to the player is less than two blocks, switch from the followPlayer
-    // state to the lookAtPlayer state.
     new StateTransition({
       parent: followPlayer,
       child: lookAtPlayer,
       shouldTransition: () => followPlayer.distanceToTarget() < followDist,
     }),
 
-    // If the distance to the player is more than two blocks, switch from the lookAtPlayer
-    // state to the followPlayer state.
     new StateTransition({
       parent: lookAtPlayer,
       child: followPlayer,
@@ -121,15 +110,12 @@ bot.once("spawn", () => {
     }),
   ];
 
-  // Now we just wrap our transition list in a nested state machine layer. We want the bot
-  // to start on the getClosestPlayer state, so we'll specify that here.
   const followTransition = new NestedStateMachine(
     followTransitions,
     getClosestPlayer
   );
 
-  // We can start our state machine simply by creating a new instance.
-  new BotStateMachine(bot, followTransition);
+  const botStateMachine = new BotStateMachine(bot, followTransition);
 
   bot.on("chat", async (username, rawMsg) => {
     if (username === bot.username) {
@@ -172,6 +158,22 @@ bot.once("spawn", () => {
           chat("k bye");
           bot.quit();
         },
+      },
+      {
+        key: "come",
+        help: "I'll start following you",
+        handler() {
+          const playerEntity = bot.players[username]?.entity;
+          if (playerEntity == null) {
+            chat("I can't seem to find you..");
+            return;
+          }
+        },
+      },
+      {
+        key: "afk",
+        help: "I'll afk where you're standing",
+        handler() {},
       },
     ];
     const cmdHandler = cmdHandlers.find(
