@@ -65,7 +65,6 @@ const bot = mineflayer.createBot({
   host,
   port,
   auth: "microsoft",
-  version: "1.19.2",
 });
 
 bot.on("error", console.error);
@@ -213,6 +212,14 @@ bot.once("spawn", () => {
           }
           bot.on("physicsTick", doAfk);
           stopAfk = () => bot.off("physicsTick", doAfk);
+          chat("ok");
+        },
+      },
+      {
+        key: "tp",
+        help: "I'll tp to you",
+        async handler() {
+          chat(`/tp ${bot.username} ${username}`);
           chat("ok");
         },
       },
