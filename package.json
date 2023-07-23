@@ -12,7 +12,7 @@
   },
   "author": "",
   "dependencies": {
-    "mineflayer": "^4.10.0",
+    "mineflayer": "lkwilson/mineflayer#send-previous-msgs",
     "mineflayer-pathfinder": "^2.4.4",
     "mineflayer-statemachine": "^1.7.0"
   },

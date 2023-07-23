@@ -63,6 +63,7 @@ if (portStr !== undefined) {
 const bot = mineflayer.createBot({
   username,
   host,
+  version: process.env.VERSION,
   port,
   auth: "microsoft",
 });
